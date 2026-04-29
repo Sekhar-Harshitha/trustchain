@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+pydantic[email]
+python-multipart
+python-dotenv
+twilio
+transformers
+torch
+scikit-learn
+Pillow
+requests
+uuid

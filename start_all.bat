@@ -1,0 +1,13 @@
+@echo off
+echo Starting TrustChain Services...
+
+echo Starting Python Backend...
+start "TrustChain Backend" cmd /k "cd backend && pip install -r requirements.txt && python -m uvicorn main:app --reload --port 8000"
+
+echo Starting Node.js Server...
+start "TrustChain Server" cmd /k "cd server && npm install && npm run dev"
+
+echo Starting React Client...
+start "TrustChain Client" cmd /k "cd client && npm install && npm run dev"
+
+echo All services are starting up in separate windows!
