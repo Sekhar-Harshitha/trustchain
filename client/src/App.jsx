@@ -9,50 +9,47 @@ import AdminDashboard from './pages/AdminDashboard';
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('tc_token');
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!token) return <Navigate to="/login" replace />;
   return children;
 };
 
 function App() {
   return (
-    <AppProvider>
-      <BrowserRouter>
+    // BrowserRouter MUST wrap AppProvider because AppProvider uses useNavigate()
+    <BrowserRouter>
+      <AppProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route 
-            path="/shop" 
+          <Route
+            path="/shop"
             element={
               <ProtectedRoute>
                 <Shop />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/checkout" 
+          <Route
+            path="/checkout"
             element={
               <ProtectedRoute>
                 <Checkout />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/orders" 
+          <Route
+            path="/orders"
             element={
               <ProtectedRoute>
                 <OrderHistory />
               </ProtectedRoute>
-            } 
+            }
           />
           <Route path="/admin" element={<AdminDashboard />} />
-          
-          {/* Redirects */}
           <Route path="/" element={<Navigate to="/shop" replace />} />
           <Route path="*" element={<Navigate to="/shop" replace />} />
         </Routes>
-      </BrowserRouter>
-    </AppProvider>
+      </AppProvider>
+    </BrowserRouter>
   );
 }
 

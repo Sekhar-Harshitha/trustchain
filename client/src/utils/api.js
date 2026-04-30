@@ -1,9 +1,10 @@
-const BASE = "/api";
+// client/src/utils/api.js
+const BASE = '/api';
 
 const request = async (endpoint, options = {}) => {
   const { token, ...rest } = options;
   const headers = {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
     ...rest.headers,
   };
@@ -13,64 +14,109 @@ const request = async (endpoint, options = {}) => {
     headers,
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || "Something went wrong");
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error('Server returned invalid JSON');
   }
 
-  return data;
+  if (!response.ok) {
+    throw new Error(data?.message || data?.error || 'Something went wrong');
+  }
+
+  // Handle both `data` wrapper and direct response formats
+  return data.data !== undefined ? data.data : data;
 };
 
-export const sendOtp = (aadhaar) => 
-  request("/auth/send-otp", { 
-    method: "POST", 
-    body: JSON.stringify({ aadhaar }) 
+// ─── AUTH ──────────────────────────────────────────────────────
+export const sendOtp = (aadhaar) =>
+  request('/auth/send-otp', {
+    method: 'POST',
+    body: JSON.stringify({ aadhaar }),
   });
 
-export const verifyOtp = (aadhaar, otp) => 
-  request("/auth/verify-otp", { 
-    method: "POST", 
-    body: JSON.stringify({ aadhaar, otp }) 
+export const verifyOtp = (aadhaar, otp) =>
+  request('/auth/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify({ aadhaar, otp }),
   });
 
-export const getProducts = (category) => 
-  request(`/products${category ? `?category=${category}` : ""}`);
+export const getMe = (token) =>
+  request('/auth/me', { token });
 
-export const getProduct = (id) => 
+// ─── PRODUCTS ──────────────────────────────────────────────────
+export const getProducts = (category) =>
+  request(`/products${category ? `?category=${category}` : ''}`);
+
+export const getProduct = (id) =>
   request(`/products/${id}`);
 
-export const placeOrder = (items, total, token) => 
-  request("/orders", { 
-    method: "POST", 
-    token, 
-    body: JSON.stringify({ items, total }) 
+// ─── ORDERS ────────────────────────────────────────────────────
+export const placeOrder = (items, total, token) =>
+  request('/orders', {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ items, total }),
   });
 
-export const getOrders = (aadhaar, token) => 
-  request(`/orders/${aadhaar}`, { token });
+export const getOrders = (userId, token) =>
+  request(`/orders/${encodeURIComponent(userId)}`, { token });
 
-export const submitReturn = (data, token) => 
-  request("/returns", { 
-    method: "POST", 
-    token, 
-    body: JSON.stringify(data) 
+// ─── RETURNS ───────────────────────────────────────────────────
+export const submitReturn = (data, token) =>
+  request('/returns', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(data),
   });
 
-export const getReturns = (aadhaar, token) => 
-  request(`/returns/${aadhaar}`, { token });
+export const getReturns = (userId, token) =>
+  request(`/returns/${encodeURIComponent(userId)}`, { token });
 
-export const getTrustScore = (token) => 
-  request("/auth/me", { token });
+// ─── FRAUD PREDICT ─────────────────────────────────────────────
+export const fraudPredict = (features, token) =>
+  request('/fraud-predict', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(features),
+  });
 
-export const getAdminStats = () => 
-  request("/admin/stats");
+// ─── RATINGS ───────────────────────────────────────────────────
+export const submitRating = (data, token) =>
+  request('/ratings', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(data),
+  });
 
-export const getAdminReturns = () => 
-  request("/admin/returns");
+export const getRatings = (customerId, token) =>
+  request(`/ratings/${encodeURIComponent(customerId)}`, { token });
 
-export const getChain = () => 
-  request("/admin/chain");
+// ─── ADMIN ─────────────────────────────────────────────────────
+export const getAdminStats = () =>
+  request('/admin/stats');
 
-export const validateChain = () => 
-  request("/admin/validate");
+export const getAdminReturns = () =>
+  request('/admin/returns');
+
+export const getAdminUsers = () =>
+  request('/admin/users');
+
+export const blockUser = (userId) =>
+  request('/admin/block-user', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  });
+
+export const unblockUser = (userId) =>
+  request('/admin/unblock-user', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  });
+
+export const getChain = () =>
+  request('/admin/chain');
+
+export const validateChain = () =>
+  request('/admin/validate');

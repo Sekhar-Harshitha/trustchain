@@ -15,23 +15,32 @@ import {
   PieChart,
   Zap,
   Lock,
-  Cpu
+  Cpu,
+  UserX,
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState([])
-  const [returns, setReturns] = useState([])
+  const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
-  const [aiSensitivity, setAiSensitivity] = useState('Medium')
+  const [filter, setFilter] = useState('ALL') // ALL, FRAUD, SAFE
+  const [alerts, setAlerts] = useState([
+    { id: 1, msg: "New suspicious transaction from u_234567890123", type: "warning" },
+    { id: 2, msg: "System node delta synchronized", type: "info" }
+  ])
 
   const fetchData = async () => {
     try {
-      const [usersRes, returnsRes] = await Promise.all([
-        api.get('/api/users'),
-        api.get('/api/returns/vendor/2') // Mock returns for stats
+      const [usersRes, transRes] = await Promise.all([
+        api.get('/users'),
+        api.get('/admin/transactions')
       ])
-      setUsers(usersRes.data)
-      setReturns(returnsRes.data)
+      // Handle the data structure from our new backend
+      setUsers(usersRes.data || [])
+      setTransactions(transRes.data.data.transactions || [])
     } catch (err) {
       console.error('Master node sync failed', err)
     } finally {
@@ -41,13 +50,42 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchData()
+    // Simulated live alerts
+    const interval = setInterval(() => {
+      if (Math.random() > 0.7) {
+        const newAlert = {
+          id: Date.now(),
+          msg: `System scan: ${Math.random() > 0.5 ? 'Security breach attempt blocked' : 'New identity verified'}`,
+          type: Math.random() > 0.5 ? 'error' : 'info'
+        }
+        setAlerts(prev => [newAlert, ...prev.slice(0, 4)])
+      }
+    }, 5000)
+    return () => clearInterval(interval)
   }, [])
+
+  const handleBlockUser = async (userId) => {
+    if (!window.confirm('Are you sure you want to block this user and revoke all credentials?')) return;
+    try {
+      await api.post('/admin/block-user', { userId });
+      alert('User blocked successfully');
+      fetchData();
+    } catch (err) {
+      alert('Failed to block user');
+    }
+  }
+
+  const filteredTransactions = transactions.filter(t => {
+    if (filter === 'FRAUD') return t.status === 'FLAGGED';
+    if (filter === 'SAFE') return t.status === 'DELIVERED';
+    return true;
+  })
 
   const stats = {
     totalUsers: users.length,
-    totalReturns: returns.length + 42, // Mock historical data
-    fraudRate: '12.4%',
-    revenueSaved: '₹4,52,000'
+    totalTransactions: transactions.length,
+    fraudFlags: transactions.filter(t => t.status === 'FLAGGED').length,
+    capitalRisk: `₹${transactions.reduce((acc, t) => t.status === 'FLAGGED' ? acc + t.total : acc, 0).toLocaleString()}`
   }
 
   if (loading) return (
@@ -64,108 +102,150 @@ export default function AdminDashboard() {
       
       {/* ── MASTER STATS ── */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-         <AdminStatCard label="Total Identities" value={stats.totalUsers} icon={<Users />} color="text-blue-500" />
-         <AdminStatCard label="Network Returns" value={stats.totalReturns} icon={<RotateCcw />} color="text-amber-500" />
-         <AdminStatCard label="Fraud Suppression" value={stats.fraudRate} icon={<Zap />} color="text-red-500" />
-         <AdminStatCard label="Capital Protected" value={stats.revenueSaved} icon={<TrendingUp />} color="text-emerald-500" />
+         <AdminStatCard label="Identities" value={stats.totalUsers} icon={<Users />} color="text-blue-500" />
+         <AdminStatCard label="Transactions" value={stats.totalTransactions} icon={<Activity />} color="text-indigo-500" />
+         <AdminStatCard label="Fraud Flags" value={stats.fraudFlags} icon={<AlertTriangle />} color="text-red-500" />
+         <AdminStatCard label="Value at Risk" value={stats.capitalRisk} icon={<TrendingUp />} color="text-emerald-500" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-         {/* ── FRAUD DISTRIBUTION (CSS CHARTS) ── */}
-         <div className="lg:col-span-4 bg-slate-900/50 border border-slate-800 p-10 rounded-[3rem]">
-            <h3 className="text-sm font-black uppercase tracking-widest mb-8 flex items-center gap-3"><PieChart size={18} className="text-red-500" /> Fraud Distribution</h3>
-            <div className="space-y-8">
-               <ChartBar label="Wardrobing" value={45} color="bg-red-500" />
-               <ChartBar label="Physical Damage" value={30} color="bg-amber-500" />
-               <ChartBar label="Fake Receipts" value={15} color="bg-indigo-500" />
-               <ChartBar label="INR (Item Not Received)" value={10} color="bg-emerald-500" />
+         {/* ── LIVE ALERTS ── */}
+         <div className="lg:col-span-4 space-y-8">
+            <div className="bg-slate-900/50 border border-slate-800 p-10 rounded-[3rem]">
+               <h3 className="text-sm font-black uppercase tracking-widest mb-8 flex items-center gap-3"><Zap size={18} className="text-yellow-500" /> Live Threat Feed</h3>
+               <div className="space-y-4">
+                  <AnimatePresence>
+                     {alerts.map(alert => (
+                        <motion.div 
+                          key={alert.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 20 }}
+                          className={`p-4 rounded-xl border text-[10px] uppercase font-black tracking-tight ${
+                            alert.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-500' :
+                            alert.type === 'warning' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
+                            'bg-blue-500/10 border-blue-500/20 text-blue-500'
+                          }`}
+                        >
+                           {alert.msg}
+                        </motion.div>
+                     ))}
+                  </AnimatePresence>
+               </div>
             </div>
-            <div className="mt-12 p-6 bg-slate-950/50 rounded-2xl border border-slate-800/50">
-               <p className="text-[9px] text-slate-500 uppercase tracking-widest leading-relaxed italic">
-                 AI Analysis indicates a 12% rise in wardrobing attempts this quarter. Suppression protocols active.
-               </p>
+
+            <div className="bg-slate-900/50 border border-slate-800 p-10 rounded-[3rem]">
+               <h3 className="text-sm font-black uppercase tracking-widest mb-8 flex items-center gap-3"><Cpu size={18} className="text-purple-500" /> AI Sensitivity</h3>
+               <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  {['Low', 'Medium', 'High'].map(s => (
+                     <button key={s} className={`flex-1 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-tighter transition-all ${s === 'Medium' ? 'bg-red-500 text-white' : 'text-slate-600 hover:text-slate-300'}`}>{s}</button>
+                  ))}
+               </div>
             </div>
          </div>
 
-         {/* ── USER MANAGEMENT ── */}
+         {/* ── TRANSACTION AUDIT ── */}
          <div className="lg:col-span-8 bg-slate-900/50 border border-slate-800 rounded-[3rem] overflow-hidden">
             <div className="p-10 border-b border-slate-800 flex justify-between items-center">
-               <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-3"><Activity size={18} className="text-emerald-500" /> Identity Audit</h3>
-               <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-600" />
-                  <input type="text" placeholder="Search Hash..." className="bg-slate-950 border border-slate-800 rounded-lg py-2 pl-10 pr-4 text-[10px] outline-none focus:border-red-500/50" />
+               <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-3"><RotateCcw size={18} className="text-indigo-500" /> Transaction Ledger</h3>
+               <div className="flex gap-4">
+                  <select 
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    className="bg-slate-950 border border-slate-800 rounded-lg py-2 px-4 text-[10px] outline-none text-slate-400 font-black uppercase tracking-widest"
+                  >
+                    <option value="ALL">All Flows</option>
+                    <option value="FRAUD">Fraud Flags</option>
+                    <option value="SAFE">Safe Cleared</option>
+                  </select>
                </div>
             </div>
-            <table className="w-full text-left">
-               <thead className="bg-slate-950/50 text-[9px] text-slate-500 font-black uppercase tracking-widest">
-                  <tr>
-                     <th className="px-10 py-6">Identity Hash</th>
-                     <th className="px-10 py-6">Role</th>
-                     <th className="px-10 py-6 text-center">Integrity</th>
-                     <th className="px-10 py-6 text-right">Action</th>
-                  </tr>
-               </thead>
-               <tbody className="divide-y divide-slate-800">
-                  {users.map(u => (
-                     <tr key={u.id} className="hover:bg-slate-800/20 transition-colors group">
-                        <td className="px-10 py-8 font-mono text-[11px] text-slate-300">
-                           {u.aadhaar_hash ? `HASH_${u.aadhaar_hash.substr(-6)}` : `ROOT_${u.name.substr(0,4)}`}
-                        </td>
-                        <td className="px-10 py-8">
-                           <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter border ${u.role === 'admin' ? 'bg-red-500/10 text-red-500 border-red-500/20' : u.role === 'vendor' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'}`}>
-                              {u.role}
-                           </span>
-                        </td>
-                        <td className="px-10 py-8 text-center">
-                           <span className={`text-[11px] font-black ${u.trust_score < 50 ? 'text-red-500' : 'text-emerald-500'}`}>{u.trust_score?.toFixed(0)}</span>
-                        </td>
-                        <td className="px-10 py-8 text-right">
-                           <div className="flex justify-end gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button className="p-2 bg-slate-800 hover:text-red-500 transition-all rounded-lg"><Edit size={14} /></button>
-                              <button className="p-2 bg-slate-800 hover:text-red-500 transition-all rounded-lg"><Trash2 size={14} /></button>
-                           </div>
-                        </td>
+            <div className="overflow-x-auto">
+               <table className="w-full text-left">
+                  <thead className="bg-slate-950/50 text-[9px] text-slate-500 font-black uppercase tracking-widest">
+                     <tr>
+                        <th className="px-10 py-6">ID</th>
+                        <th className="px-10 py-6">User</th>
+                        <th className="px-10 py-6 text-center">Score</th>
+                        <th className="px-10 py-6 text-center">Status</th>
+                        <th className="px-10 py-6 text-right">Value</th>
                      </tr>
-                  ))}
-               </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                     {filteredTransactions.map(t => (
+                        <tr key={t.id} className="hover:bg-slate-800/20 transition-colors group">
+                           <td className="px-10 py-8 font-mono text-[10px] text-slate-400">{t.id.slice(-6).toUpperCase()}</td>
+                           <td className="px-10 py-8 font-black text-[11px] text-white">
+                              {t.userId || 'GUEST'}
+                              <div className="text-[8px] text-slate-600 font-normal">{new Date(t.timestamp).toLocaleString()}</div>
+                           </td>
+                           <td className="px-10 py-8 text-center">
+                              <span className={`text-[11px] font-black ${t.fraudScore >= 50 ? 'text-red-500' : 'text-emerald-500'}`}>{t.fraudScore}%</span>
+                           </td>
+                           <td className="px-10 py-8 text-center">
+                              <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter border ${t.status === 'FLAGGED' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'}`}>
+                                 {t.status}
+                              </span>
+                           </td>
+                           <td className="px-10 py-8 text-right font-black text-white">₹{t.total.toLocaleString()}</td>
+                        </tr>
+                     ))}
+                  </tbody>
+               </table>
+            </div>
          </div>
       </div>
 
-      {/* ── SYSTEM SETTINGS & LOGS ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-         <div className="bg-slate-900/50 border border-slate-800 p-10 rounded-[3rem]">
-            <h3 className="text-sm font-black uppercase tracking-widest mb-10 flex items-center gap-3"><Settings size={18} className="text-blue-500" /> Protocol Configuration</h3>
-            <div className="space-y-8">
-               <div className="flex justify-between items-center">
-                  <span className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">AI Engine Sensitivity</span>
-                  <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
-                     {['Low', 'Medium', 'High'].map(s => (
-                        <button key={s} onClick={() => setAiSensitivity(s)} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-tighter transition-all ${aiSensitivity === s ? 'bg-red-500 text-white shadow-lg' : 'text-slate-600 hover:text-slate-300'}`}>{s}</button>
-                     ))}
-                  </div>
-               </div>
-               <div className="flex justify-between items-center">
-                  <span className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">OTP Expiry (Seconds)</span>
-                  <input type="number" defaultValue={60} className="w-24 bg-slate-950 border border-slate-800 rounded-lg py-2 px-4 text-[11px] text-right text-red-500 font-black outline-none" />
-               </div>
-               <div className="flex justify-between items-center pt-4">
-                  <span className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">Auto-Purge Logs</span>
-                  <div className="w-12 h-6 bg-slate-800 rounded-full relative cursor-pointer"><div className="absolute right-1 top-1 w-4 h-4 bg-red-500 rounded-full shadow-lg" /></div>
-               </div>
-            </div>
+      {/* ── IDENTITY MANAGEMENT ── */}
+      <div className="bg-slate-900/50 border border-slate-800 rounded-[3rem] overflow-hidden">
+         <div className="p-10 border-b border-slate-800">
+            <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-3"><Users size={18} className="text-blue-500" /> Identity Management</h3>
          </div>
-
-         <div className="bg-slate-950 border border-slate-800 p-10 rounded-[3rem] font-mono">
-            <h3 className="text-sm font-black uppercase tracking-widest mb-10 flex items-center gap-3"><Cpu size={18} className="text-purple-500" /> Recent System Logs</h3>
-            <div className="space-y-4 max-h-[250px] overflow-y-auto pr-4 scrollbar-hide">
-               <LogItem time="14:52:10" msg="IDENTITY_VERIFIED: HASH_456 Authenticated via Node_Delta" type="success" />
-               <LogItem time="14:50:04" msg="FRAUD_FLAGGED: RTN_902 AI_SCORE=82% (WARDROBING_PREDICTED)" type="warning" />
-               <LogItem time="14:48:22" msg="ADMIN_LOGIN: ROOT_ADMIN Session Initialized" type="info" />
-               <LogItem time="14:45:11" msg="SCHEMA_UPDATE: User_Index optimized for CID_Query" type="info" />
-               <LogItem time="14:42:00" msg="SECURITY_ALERT: Multiple OTP attempts for HASH_789" type="error" />
-            </div>
-         </div>
+         <table className="w-full text-left">
+            <thead className="bg-slate-950/50 text-[9px] text-slate-500 font-black uppercase tracking-widest">
+               <tr>
+                  <th className="px-10 py-6">Name</th>
+                  <th className="px-10 py-6">ID / Aadhaar</th>
+                  <th className="px-10 py-6 text-center">Trust</th>
+                  <th className="px-10 py-6 text-center">Status</th>
+                  <th className="px-10 py-6 text-right">Actions</th>
+               </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+               {users.map(u => (
+                  <tr key={u.id} className="hover:bg-slate-800/20 transition-colors group">
+                     <td className="px-10 py-8 font-black text-[11px]">{u.name}</td>
+                     <td className="px-10 py-8 font-mono text-[10px] text-slate-400">{u.id}</td>
+                     <td className="px-10 py-8 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                           <span className={`text-[11px] font-black ${u.trustScore < 50 ? 'text-red-500' : 'text-emerald-500'}`}>{u.trustScore}</span>
+                           <div className="w-16 h-1 bg-slate-800 rounded-full overflow-hidden">
+                              <div className={`h-full ${u.trustScore < 50 ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${u.trustScore}%` }}></div>
+                           </div>
+                        </div>
+                     </td>
+                     <td className="px-10 py-8 text-center">
+                        <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter border ${u.status === 'blocked' ? 'bg-red-500 text-white' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+                           {u.status || 'Active'}
+                        </span>
+                     </td>
+                     <td className="px-10 py-8 text-right">
+                        <div className="flex justify-end gap-4">
+                           {u.status !== 'blocked' && (
+                              <button 
+                                onClick={() => handleBlockUser(u.id)}
+                                className="p-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all rounded-xl flex items-center gap-2 text-[9px] font-black uppercase"
+                              >
+                                 <UserX size={14} /> Block
+                              </button>
+                           )}
+                           <button className="p-3 bg-slate-800 text-slate-400 hover:text-white transition-all rounded-xl"><Settings size={14} /></button>
+                        </div>
+                     </td>
+                  </tr>
+               ))}
+            </tbody>
+         </table>
       </div>
     </div>
   )
@@ -179,35 +259,6 @@ function AdminStatCard({ label, value, icon, color }) {
           <p className="text-3xl font-black text-white tracking-tighter">{value}</p>
        </div>
        <div className={`w-14 h-14 bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-center group-hover:scale-110 group-hover:border-red-500/20 transition-all ${color}`}>{icon}</div>
-    </div>
-  )
-}
-
-function ChartBar({ label, value, color }) {
-  return (
-    <div className="space-y-3">
-       <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-          <span className="text-slate-400">{label}</span>
-          <span className="text-slate-200">{value}%</span>
-       </div>
-       <div className="h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800/50">
-          <motion.div initial={{ width: 0 }} animate={{ width: `${value}%` }} transition={{ duration: 1.5, ease: 'easeOut' }} className={`h-full ${color}`} />
-       </div>
-    </div>
-  )
-}
-
-function LogItem({ time, msg, type }) {
-  const colors = {
-    success: 'text-emerald-500',
-    warning: 'text-amber-500',
-    info: 'text-blue-500',
-    error: 'text-red-500'
-  }
-  return (
-    <div className="flex gap-4 border-b border-slate-900 pb-4">
-       <span className="text-[10px] text-slate-700 font-bold">{time}</span>
-       <span className={`text-[10px] font-black uppercase tracking-widest ${colors[type]}`}>{msg}</span>
     </div>
   )
 }

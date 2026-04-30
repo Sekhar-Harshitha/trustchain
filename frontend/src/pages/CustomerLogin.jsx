@@ -2,16 +2,17 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Shield, Smartphone, Lock, ChevronRight, Loader2, User, HelpCircle, PhoneCall } from 'lucide-react'
 import api from '../api'
-import { Link } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 
 export default function CustomerLogin({ onLogin }) {
   const [step, setStep] = useState(1)
   const [aadhaar, setAadhaar] = useState('')
-  const [phone, setPhone] = useState('') // New Dynamic Phone State
+  const [phone, setPhone] = useState('') 
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [maskedPhone, setMaskedPhone] = useState('')
+  const navigate = useNavigate()
 
   const handleSendOTP = async (e) => {
     e.preventDefault()
@@ -20,12 +21,12 @@ export default function CustomerLogin({ onLogin }) {
     try {
       const res = await api.post('/auth/customer/send-otp', { 
         aadhaar_number: aadhaar,
-        phone_number: phone || null // Send phone if provided
+        phone_number: phone || null 
       })
-      setMaskedPhone(res.data.masked_phone)
+      setMaskedPhone(res.data.data.masked_phone)
       setStep(2)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Identity sync failed')
+      setError(err.response?.data?.message || 'Identity sync failed')
     } finally {
       setLoading(false)
     }
@@ -41,8 +42,9 @@ export default function CustomerLogin({ onLogin }) {
         otp: otp,
         role: 'customer'
       })
-      if (res.data.token) {
-        onLogin(res.data)
+      if (res.data.data.token) {
+        onLogin(res.data.data)
+        navigate('/shop')
       } else {
         setError('Invalid OTP sequence')
       }

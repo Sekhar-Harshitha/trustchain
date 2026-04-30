@@ -17,10 +17,10 @@ export default function AdminLogin({ onLogin }) {
     setError('')
     try {
       const res = await api.post('/auth/admin/login', { email, password })
-      onLogin(res.data)
+      onLogin(res.data.data)
       navigate('/admin/dashboard')
     } catch (err) {
-      setError(err.response?.data?.detail || 'TERMINAL ACCESS DENIED')
+      setError(err.response?.data?.message || 'TERMINAL ACCESS DENIED')
     } finally {
       setLoading(false)
     }

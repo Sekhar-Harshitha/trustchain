@@ -11,6 +11,7 @@ import AdminLogin from './pages/AdminLogin'
 import CustomerDashboard from './pages/CustomerPortal'
 import VendorDashboard from './pages/VendorDashboard'
 import AdminDashboard from './pages/AdminDashboard'
+import Shop from './pages/Shop'
 
 export default function App() {
   const [authState, setAuthState] = useState({
@@ -54,6 +55,16 @@ export default function App() {
             <Route path="/login/customer" element={<CustomerLogin onLogin={handleLogin} />} />
             <Route path="/login/vendor" element={<VendorLogin onLogin={handleLogin} />} />
             <Route path="/login/admin" element={<AdminLogin onLogin={handleLogin} />} />
+
+            {/* Shop Experience */}
+            <Route 
+              path="/shop" 
+              element={
+                <ProtectedRoute allowedRole="customer">
+                  <Shop user={authState.user} />
+                </ProtectedRoute>
+              } 
+            />
 
             {/* Dashboards (Protected) */}
             <Route 

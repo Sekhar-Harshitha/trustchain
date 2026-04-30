@@ -16,6 +16,7 @@ export default function Navbar({ auth, onLogout }) {
       return (
         <>
           <Link to="/" className="text-[11px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Home</Link>
+          <Link to="/shop" className="text-[11px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Shop</Link>
           <Link to="/customer/dashboard" className="text-[11px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors">My Returns</Link>
         </>
       )
