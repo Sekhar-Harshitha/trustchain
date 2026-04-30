@@ -1,130 +1,175 @@
-// client/src/pages/OrderHistory.jsx
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { ShoppingBag, RefreshCcw, ShieldCheck, Clock, Shield } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Package, Calendar, Clock, ShieldCheck, ShieldAlert, ArrowRight, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { api } from '../utils/api';
+import { getOrders, getReturns } from '../utils/api';
+import { useNavigate } from 'react-router-dom';
 import ReturnModal from '../components/ReturnModal';
-import TrustBadge from '../components/TrustBadge';
 
-export default function OrderHistory() {
-  const { user, setTrustScoreData, trustScoreData } = useAppContext();
+const OrderHistory = () => {
+  const { user, token } = useAppContext();
   const [orders, setOrders] = useState([]);
+  const [returns, setReturns] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
-      const fetchData = async () => {
-        try {
-          const [ordersRes, scoreRes] = await Promise.all([
-            api.orders.getByUser(user.id),
-            api.user.getTrustScore(user.id)
-          ]);
-          setOrders(ordersRes.data);
-          setTrustScoreData(scoreRes.data);
-        } catch (err) {
-          console.error(err);
-        }
-      };
-      fetchData();
-    }
+    if (user) fetchData();
   }, [user]);
 
-  const handleReturnSuccess = async () => {
-    // Refresh data after return
-    const [ordersRes, scoreRes] = await Promise.all([
-      api.orders.getByUser(user.id),
-      api.user.getTrustScore(user.id)
-    ]);
-    setOrders(ordersRes.data);
-    setTrustScoreData(scoreRes.data);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [orderData, returnData] = await Promise.all([
+        getOrders(user.aadhaar.replace(/\s/g, ''), token),
+        getReturns(user.aadhaar.replace(/\s/g, ''), token)
+      ]);
+      setOrders(orderData);
+      setReturns(returnData);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getReturnForOrder = (orderId) => {
+    return returns.find(r => r.order_id === orderId);
   };
 
   return (
-    <div className="pt-32 pb-20 px-6 md:px-12 space-y-16">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-        <div className="space-y-4">
-          <h1 className="text-5xl font-black text-text-primary tracking-tight">Your Orders.</h1>
-          <p className="text-text-secondary font-medium">Manage your purchases and returns secured by blockchain.</p>
+    <div className="min-h-screen bg-slate-50 font-sans py-10 px-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center justify-between mb-10">
+          <div>
+            <button onClick={() => navigate('/shop')} className="flex items-center gap-2 text-slate-500 font-bold hover:text-accent transition-colors mb-4">
+              <ArrowLeft className="w-4 h-4" /> Back to Boutique
+            </button>
+            <h1 className="text-4xl font-black text-text-primary tracking-tight">Order History</h1>
+          </div>
+          <button 
+            onClick={fetchData}
+            className="p-4 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all text-text-secondary"
+          >
+            <RefreshCw className={`w-6 h-6 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
-        
-        {trustScoreData && (
-          <TrustBadge 
-            score={trustScoreData.score} 
-            label={trustScoreData.label} 
-            color={trustScoreData.color} 
+
+        {loading ? (
+          <div className="space-y-6">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-40 bg-white rounded-[2rem] animate-pulse border border-slate-100" />
+            ))}
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="bg-white p-12 rounded-[3rem] text-center shadow-sm border border-slate-100">
+            <Package className="w-16 h-16 text-slate-200 mx-auto mb-4" />
+            <p className="text-slate-500 font-bold">No orders found yet</p>
+            <button 
+              onClick={() => navigate('/shop')}
+              className="mt-6 px-8 py-3 bg-accent text-white rounded-xl font-bold hover:opacity-90 transition-all"
+            >
+              Start Shopping
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {orders.map(order => {
+              const returnInfo = getReturnForOrder(order.order_id);
+              return (
+                <motion.div 
+                  key={order.order_id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-md transition-all group"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-4 bg-slate-100 rounded-2xl">
+                        <Package className="w-6 h-6 text-text-secondary" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Order ID</p>
+                        <p className="font-black text-text-primary">{order.order_id}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-6">
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Date</p>
+                        <p className="text-sm font-bold text-text-secondary">
+                          {new Date(order.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</p>
+                        <span className="px-3 py-1 bg-success/10 text-success rounded-full text-[10px] font-black uppercase tracking-widest">
+                          {order.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 mb-8">
+                    {order.items.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <span className="text-sm font-bold text-text-primary truncate max-w-[200px]">{item.name}</span>
+                        <div className="flex items-center gap-4">
+                          <span className="text-xs text-slate-400 font-bold">Qty: {item.quantity}</span>
+                          <span className="font-black text-text-primary text-sm">₹{item.price.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Amount</p>
+                      <p className="text-2xl font-black text-accent">₹{order.total.toLocaleString()}</p>
+                    </div>
+
+                    {!returnInfo ? (
+                      <button 
+                        onClick={() => setSelectedOrder(order)}
+                        className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-slate-200 text-text-primary rounded-xl font-bold hover:border-accent hover:text-accent transition-all group-hover:shadow-lg"
+                      >
+                        Request Return <ArrowRight className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <div className="flex flex-col items-end">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Return Status</p>
+                        <div className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider ${
+                          returnInfo.decision === 'APPROVED' ? 'bg-success/10 text-success' :
+                          returnInfo.decision === 'REJECTED' ? 'bg-danger/10 text-danger' :
+                          'bg-warning/10 text-warning'
+                        }`}>
+                          {returnInfo.decision === 'APPROVED' ? <ShieldCheck className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
+                          {returnInfo.decision}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {selectedOrder && (
+          <ReturnModal 
+            order={selectedOrder} 
+            onClose={() => setSelectedOrder(null)} 
+            onSuccess={() => {
+              setSelectedOrder(null);
+              fetchData();
+            }}
           />
         )}
-      </header>
-
-      {orders.length === 0 ? (
-        <div className="h-96 flex flex-col items-center justify-center space-y-6 bg-white/40 backdrop-blur-md rounded-[48px] border border-white/80 border-dashed">
-          <ShoppingBag size={64} className="text-gray-200" />
-          <p className="text-text-secondary font-bold">No orders found.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-10">
-          {orders.map(order => (
-            <motion.div 
-              key={order.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="bg-white/60 backdrop-blur-md rounded-[40px] border border-white/80 shadow-xl overflow-hidden"
-            >
-              <div className="p-8 bg-gray-50/50 border-b border-gray-100 flex flex-wrap gap-8 justify-between items-center">
-                <div className="flex gap-10">
-                  <div>
-                    <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Order Date</p>
-                    <p className="text-sm font-bold text-text-primary">{new Date(order.timestamp).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Total</p>
-                    <p className="text-sm font-black text-accent">${order.total.toLocaleString()}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="px-4 py-1.5 bg-success/10 text-success rounded-full text-[10px] font-black uppercase tracking-widest border border-success/20">
-                    {order.status}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-8 space-y-8">
-                {order.items.map((item, i) => (
-                  <div key={i} className="flex gap-6 items-center">
-                    <img src={item.image} alt={item.name} className="w-20 h-24 object-cover rounded-2xl" />
-                    <div className="flex-1">
-                      <h4 className="font-bold text-text-primary text-lg">{item.name}</h4>
-                      <p className="text-xs text-text-secondary font-medium">Quantity: {item.quantity}</p>
-                    </div>
-                    <p className="font-black text-text-primary">${item.price.toLocaleString()}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="p-8 bg-gray-50/30 flex justify-end">
-                <button 
-                  onClick={() => { setSelectedOrder(order); setIsReturnModalOpen(true); }}
-                  className="px-8 py-4 bg-white border border-gray-100 rounded-2xl font-bold text-text-primary flex items-center gap-2 hover:bg-gray-50 transition-colors shadow-lg shadow-black/5"
-                >
-                  <RefreshCcw size={18} /> Initiate Return
-                </button>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
-
-      {selectedOrder && (
-        <ReturnModal 
-          isOpen={isReturnModalOpen}
-          order={selectedOrder}
-          onClose={() => setIsReturnModalOpen(false)}
-          onSuccess={handleReturnSuccess}
-        />
-      )}
+      </AnimatePresence>
     </div>
   );
-}
+};
+
+export default OrderHistory;

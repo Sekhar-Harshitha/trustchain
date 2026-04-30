@@ -1,52 +1,98 @@
-// client/src/context/AppContext.jsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('trustchain_user');
-    return saved ? JSON.parse(saved) : null;
-  });
-  
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [cart, setCart] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [trustScoreData, setTrustScoreData] = useState({ score: 100, label: "Trusted", color: "green" });
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('trustchain_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('trustchain_user');
+    const savedToken = localStorage.getItem('tc_token');
+    const savedUser = localStorage.getItem('tc_user');
+    if (savedToken && savedUser) {
+      setToken(savedToken);
+      setUser(JSON.parse(savedUser));
     }
-  }, [user]);
+  }, []);
+
+  const isAuthenticated = !!token;
+
+  const login = (userData, userToken) => {
+    setUser(userData);
+    setToken(userToken);
+    localStorage.setItem('tc_token', userToken);
+    localStorage.setItem('tc_user', JSON.stringify(userData));
+  };
+
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    setCart([]);
+    setOrders([]);
+    localStorage.removeItem('tc_token');
+    localStorage.removeItem('tc_user');
+    navigate('/login');
+  };
 
   const addToCart = (product) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
+    setCart((prev) => {
+      const existing = prev.find((item) => item.id === product.id);
       if (existing) {
-        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+        return prev.map((item) =>
+          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
       }
       return [...prev, { ...product, quantity: 1 }];
     });
   };
 
   const removeFromCart = (productId) => {
-    setCart(prev => prev.filter(item => item.id !== productId));
+    setCart((prev) => prev.filter((item) => item.id !== productId));
+  };
+
+  const updateQuantity = (productId, qty) => {
+    if (qty < 1) return removeFromCart(productId);
+    setCart((prev) =>
+      prev.map((item) => (item.id === productId ? { ...item, quantity: qty } : item))
+    );
   };
 
   const clearCart = () => setCart([]);
 
-  const cartTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const cartTotal = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  }, [cart]);
+
+  const cartCount = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.quantity, 0);
+  }, [cart]);
 
   const value = {
-    user, setUser,
-    cart, addToCart, removeFromCart, clearCart, cartTotal,
-    orders, setOrders,
-    trustScoreData, setTrustScoreData
+    user,
+    token,
+    cart,
+    orders,
+    setOrders,
+    isAuthenticated,
+    login,
+    logout,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    cartTotal,
+    cartCount,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
-export const useAppContext = () => useContext(AppContext);
+export const useAppContext = () => {
+  const context = useContext(AppContext);
+  if (!context) throw new Error('useAppContext must be used within an AppProvider');
+  return context;
+};

@@ -2,59 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-
-:root {
-  --primary-purple: #8e2de2;
-  --primary-pink: #f00078;
-  --bg-light: #ffffff;
-  --text-dark: #282c3f;
-  --text-muted: #7e818c;
-}
-
 @layer base {
   html {
-    font-size: 18px; /* Increased from default 16px */
-  }
-  body {
-    @apply bg-white text-[#282c3f] antialiased;
+    scroll-behavior: smooth;
     font-family: 'Inter', sans-serif;
-    line-height: 1.6;
   }
 }
 
-@layer components {
-  .btn-vibe {
-    @apply px-12 py-5 bg-[#f00078] text-white font-black text-base rounded-lg hover:bg-[#d00068] transition-all uppercase tracking-widest shadow-lg shadow-pink-100;
-  }
+.glass {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
 }
 
-/* Commercial Layouts */
-.header-shadow {
-  box-shadow: 0 4px 16px 0 rgba(0,0,0,.08);
-}
-
-.product-card-vibe {
-  @apply border border-gray-100 p-6 hover:shadow-[0_15px_35px_rgba(0,0,0,0.1)] transition-all duration-300 relative bg-white rounded-xl;
-}
-
-/* Large Text Utilities */
-.text-hero {
-  @apply text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.9];
-}
-
-.text-section-title {
-  @apply text-3xl font-black uppercase tracking-widest text-gray-800;
-}
-
-/* Custom Scrollbar */
+/* Scrollbar Styling */
 ::-webkit-scrollbar {
-  width: 10px;
+  width: 6px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #f8f8f8;
+  background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #f00078;
-  border-radius: 5px;
+  background: #7C4DFF;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6200EA;
+}
+
+/* Custom Animations */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.33);
+  }
+  80%, 100% {
+    opacity: 0;
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 1.25s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
 }

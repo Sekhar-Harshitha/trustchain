@@ -1,70 +1,59 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { CartProvider } from './context/CartContext';
-import { ToastProvider } from './context/ToastContext';
-import Navbar from './components/Navbar';
-import Home from './pages/Home';
-import UserLogin from './pages/UserLogin';
-import AdminLogin from './pages/AdminLogin';
-import Cart from './pages/Cart';
-import Profile from './pages/Profile';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AppProvider } from './context/AppContext';
+import Login from './pages/Login';
+import Shop from './pages/Shop';
+import Checkout from './pages/Checkout';
+import OrderHistory from './pages/OrderHistory';
 import AdminDashboard from './pages/AdminDashboard';
 
-function ProtectedRoute({ children, adminOnly = false }) {
-  const { user, isAdmin } = useAuth();
-  
-  if (!user) {
-    return <Navigate to={adminOnly ? "/admin/login" : "/login"} />;
+const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('tc_token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
   }
-  if (adminOnly && !isAdmin) return <Navigate to="/" />;
-  
   return children;
-}
+};
 
-function AppContent() {
-  const location = useLocation();
-  const isAdminPage = location.pathname.startsWith('/admin');
-
+function App() {
   return (
-    <div className={`min-h-screen ${isAdminPage ? 'bg-slate-950' : 'bg-gray-50'}`}>
-      {!isAdminPage && <Navbar />}
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<UserLogin />} />
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route 
-          path="/profile" 
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/admin" 
-          element={
-            <ProtectedRoute adminOnly={true}>
-              <AdminDashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </div>
+    <AppProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route 
+            path="/shop" 
+            element={
+              <ProtectedRoute>
+                <Shop />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/checkout" 
+            element={
+              <ProtectedRoute>
+                <Checkout />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/orders" 
+            element={
+              <ProtectedRoute>
+                <OrderHistory />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="/admin" element={<AdminDashboard />} />
+          
+          {/* Redirects */}
+          <Route path="/" element={<Navigate to="/shop" replace />} />
+          <Route path="*" element={<Navigate to="/shop" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AppProvider>
   );
 }
 
-export default function App() {
-  return (
-    <AuthProvider>
-      <ToastProvider>
-        <CartProvider>
-          <Router>
-            <AppContent />
-          </Router>
-        </CartProvider>
-      </ToastProvider>
-    </AuthProvider>
-  );
-}
+export default App;

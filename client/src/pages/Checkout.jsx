@@ -1,29 +1,24 @@
-// client/src/pages/Checkout.jsx
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ShieldCheck, ArrowLeft, CreditCard, Smartphone, Truck, CheckCircle2 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { api } from '../utils/api';
-import { CreditCard, MapPin, Truck, CheckCircle2 } from 'lucide-react';
+import { placeOrder } from '../utils/api';
 
-export default function Checkout() {
-  const { cart, user, cartTotal, clearCart } = useAppContext();
+const Checkout = () => {
+  const { cart, cartTotal, token, clearCart } = useAppContext();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const navigate = useNavigate();
+  const [payment, setPayment] = useState('upi');
 
   const handlePlaceOrder = async () => {
-    if (!user) return navigate('/login');
     setLoading(true);
     try {
-      await api.orders.place({
-        userId: user.id,
-        items: cart,
-        total: cartTotal
-      });
+      await placeOrder(cart, cartTotal, token);
       setSuccess(true);
       clearCart();
-      setTimeout(() => navigate('/orders'), 2000);
+      setTimeout(() => navigate('/orders'), 3000);
     } catch (err) {
       alert(err.message);
     } finally {
@@ -33,70 +28,112 @@ export default function Checkout() {
 
   if (success) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center space-y-6">
-        <motion.div 
-          initial={{ scale: 0.5, opacity: 0 }} 
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="w-24 h-24 bg-success/20 text-success rounded-[32px] flex items-center justify-center"
+          className="w-24 h-24 bg-success/10 rounded-full flex items-center justify-center mb-6"
         >
-          <CheckCircle2 size={48} />
+          <CheckCircle2 className="w-12 h-12 text-success" />
         </motion.div>
-        <h2 className="text-4xl font-black text-text-primary">Order Secured.</h2>
-        <p className="text-text-secondary font-medium">Redirecting to your orders...</p>
+        <h1 className="text-3xl font-black text-text-primary mb-2">Order Confirmed!</h1>
+        <p className="text-text-secondary max-w-xs mx-auto">Your items have been secured and are being prepared for instant delivery.</p>
+        <p className="mt-8 text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">Redirecting to Order History...</p>
       </div>
     );
   }
 
   return (
-    <div className="pt-32 pb-20 px-6 md:px-12 grid grid-cols-1 lg:grid-cols-2 gap-20">
-      <div className="space-y-12">
-        <h1 className="text-5xl font-black text-text-primary tracking-tight">Finalize.</h1>
-        
-        <div className="space-y-8">
-          <div className="p-8 bg-white/60 backdrop-blur-md rounded-[40px] border border-white/80 shadow-xl space-y-6">
-            <div className="flex items-center gap-4 text-accent">
-              <MapPin size={24} /> <h3 className="text-xl font-bold text-text-primary">Shipping Address</h3>
-            </div>
-            <div className="space-y-2 text-text-secondary font-medium">
-              <p>Demo Street 123</p>
-              <p>San Francisco, CA 94103</p>
-            </div>
+    <div className="min-h-screen bg-slate-50 font-sans py-10 px-6">
+      <div className="max-w-4xl mx-auto">
+        <button onClick={() => navigate('/shop')} className="flex items-center gap-2 text-slate-500 font-bold hover:text-accent transition-colors mb-8">
+          <ArrowLeft className="w-4 h-4" /> Back to Shop
+        </button>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+          <div className="space-y-8">
+            <section className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+              <div className="flex items-center gap-3 mb-6">
+                <Truck className="w-6 h-6 text-accent" />
+                <h2 className="text-xl font-black text-text-primary">Delivery Address</h2>
+              </div>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <input type="text" placeholder="First Name" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-accent" />
+                  <input type="text" placeholder="Last Name" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-accent" />
+                </div>
+                <input type="text" placeholder="Street Address" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-accent" />
+                <div className="grid grid-cols-2 gap-4">
+                  <input type="text" placeholder="City" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-accent" />
+                  <input type="text" placeholder="Pincode" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-accent" />
+                </div>
+              </div>
+            </section>
+
+            <section className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+              <div className="flex items-center gap-3 mb-6">
+                <CreditCard className="w-6 h-6 text-accent" />
+                <h2 className="text-xl font-black text-text-primary">Payment Method</h2>
+              </div>
+              <div className="flex gap-4">
+                {[
+                  { id: 'upi', icon: Smartphone, label: 'UPI' },
+                  { id: 'card', icon: CreditCard, label: 'Card' },
+                  { id: 'cod', icon: Truck, label: 'COD' }
+                ].map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => setPayment(m.id)}
+                    className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${payment === m.id ? 'border-accent bg-accent/5' : 'border-slate-100 grayscale opacity-60'}`}
+                  >
+                    <m.icon className={payment === m.id ? 'text-accent' : 'text-slate-400'} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">{m.label}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
           </div>
 
-          <div className="p-8 bg-white/60 backdrop-blur-md rounded-[40px] border border-white/80 shadow-xl space-y-6">
-            <div className="flex items-center gap-4 text-accent">
-              <CreditCard size={24} /> <h3 className="text-xl font-bold text-text-primary">Payment Method</h3>
+          <aside className="space-y-6">
+            <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 sticky top-32">
+              <h2 className="text-xl font-black text-text-primary mb-6">Order Summary</h2>
+              <div className="space-y-4 mb-6 max-h-60 overflow-y-auto pr-2">
+                {cart.map(item => (
+                  <div key={item.id} className="flex justify-between items-center text-sm">
+                    <div className="flex gap-3">
+                      <span className="font-black text-accent">{item.quantity}x</span>
+                      <span className="text-slate-600 truncate max-w-[140px]">{item.name}</span>
+                    </div>
+                    <span className="font-bold text-text-primary">₹{(item.price * item.quantity).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-6 border-t border-slate-100 space-y-3">
+                <div className="flex justify-between text-slate-500">
+                  <span>Shipping</span>
+                  <span className="text-success font-bold">FREE</span>
+                </div>
+                <div className="flex justify-between items-end">
+                  <span className="font-bold text-text-primary text-lg">Total Amount</span>
+                  <span className="font-black text-accent text-3xl">₹{cartTotal.toLocaleString()}</span>
+                </div>
+              </div>
+              <button
+                onClick={handlePlaceOrder}
+                disabled={loading || cart.length === 0}
+                className="w-full mt-8 py-5 bg-accent text-white rounded-2xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                {loading ? "Securing Order..." : "Place Order →"}
+              </button>
+              <div className="mt-4 flex items-center justify-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                <ShieldCheck className="w-3 h-3 text-success" /> Blockchain-Encrypted Transaction
+              </div>
             </div>
-            <p className="text-text-secondary font-medium italic">Payment handled securely via TrustChain Identity.</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-10 bg-gray-900 rounded-[48px] text-white space-y-10 h-fit sticky top-32">
-        <h3 className="text-2xl font-bold">Order Summary</h3>
-        <div className="space-y-4">
-          {cart.map(item => (
-            <div key={item.id} className="flex justify-between items-center opacity-80">
-              <p>{item.name} x {item.quantity}</p>
-              <p className="font-bold">${(item.price * item.quantity).toLocaleString()}</p>
-            </div>
-          ))}
-        </div>
-        
-        <div className="pt-10 border-t border-white/10 space-y-6">
-          <div className="flex justify-between items-center">
-            <span className="text-white/60 font-bold uppercase tracking-widest text-xs">Total Amount</span>
-            <span className="text-4xl font-black">${cartTotal.toLocaleString()}</span>
-          </div>
-          <button 
-            onClick={handlePlaceOrder}
-            disabled={loading || cart.length === 0}
-            className="w-full h-20 bg-accent text-white rounded-3xl font-black text-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-3 shadow-2xl shadow-accent/20"
-          >
-            {loading ? "Securing Transaction..." : "Place Order Now"} <Truck size={24} />
-          </button>
+          </aside>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default Checkout;
